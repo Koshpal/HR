@@ -8,11 +8,13 @@ import SessionReports from '../pages/Sessions/SessionReports';
 import Analytics from '../pages/Reports/Analytics';
 import Settings from '../pages/Settings/Settings';
 import Login from '../pages/Auth/Login';
+import ForgotPassword from '../pages/Auth/ForgotPassword';
 
 const AppRoutes: React.FC = () => {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
       
       <Route
         path="/"

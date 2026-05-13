@@ -39,7 +39,10 @@ const EmployeeDirectory: React.FC = () => {
         HrService.getEmployees(),
         HrService.getDepartments(),
       ]);
-      setEmployees(empData);
+      const employeeList = Array.isArray(empData)
+        ? empData
+        : ((empData as any)?.data || (empData as any)?.employees || []);
+      setEmployees(employeeList);
       setDepartments(deptData);
     } catch (error) {
       console.error('Failed to fetch employee data:', error);
@@ -66,8 +69,8 @@ const EmployeeDirectory: React.FC = () => {
   const filteredEmployees = useMemo(() => {
     return employees.filter((emp: Employee) => {
       const matchesSearch =
-        emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        emp.email.toLowerCase().includes(searchTerm.toLowerCase());
+        (emp.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (emp.email || '').toLowerCase().includes(searchTerm.toLowerCase());
       const matchesDept = selectedDept === 'All' || emp.department === selectedDept;
       return matchesSearch && matchesDept;
     });

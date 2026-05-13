@@ -23,7 +23,7 @@ interface Props {
 
 type ImportStep = 'upload' | 'importing' | 'result';
 
-const ACCEPTED_TYPES = '.csv,text/csv,application/vnd.ms-excel';
+const ACCEPTED_TYPES = '.csv,text/csv,application/vnd.ms-excel,text/plain';
 
 const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) => {
   const [step, setStep] = useState<ImportStep>('upload');
@@ -47,7 +47,9 @@ const BulkImportModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) => {
   // ── File selection ─────────────────────────────────────────────────────────
   const handleFileSelect = useCallback((selected: File | null) => {
     if (!selected) return;
-    if (!selected.name.endsWith('.csv') && selected.type !== 'text/csv') {
+    const name = selected.name.toLowerCase();
+    const type = (selected.type || '').toLowerCase();
+    if (!name.endsWith('.csv') && !['text/csv', 'application/vnd.ms-excel', 'text/plain'].includes(type)) {
       setApiError('Please upload a valid CSV file (.csv)');
       return;
     }

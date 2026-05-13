@@ -12,7 +12,8 @@ import type {
   DashboardStats, 
   DashboardAlert, 
   FinancialHealthDist, 
-  ParticipationDept 
+  ParticipationDept,
+  InsightsSummary,
 } from '../../types/dashboard.types';
 import HealthDistributionChart from '../../components/dashboard/HealthDistributionChart';
 import DepartmentParticipationChart from '../../components/dashboard/DepartmentParticipationChart';
@@ -25,22 +26,44 @@ const Dashboard: React.FC = () => {
   const [alerts, setAlerts] = useState<DashboardAlert[]>([]);
   const [healthDist, setHealthDist] = useState<FinancialHealthDist | null>(null);
   const [deptParticipation, setDeptParticipation] = useState<ParticipationDept[]>([]);
+  const [insights, setInsights] = useState<InsightsSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        const [statsData, alertsData, healthData, deptData] = await Promise.all([
+
+        const promises = [
           HrService.getDashboardStats(),
           HrService.getDashboardAlerts(),
           HrService.getFinancialHealthDistribution(),
           HrService.getParticipationByDepartment(),
-        ]);
-        setStats(statsData);
-        setAlerts(alertsData);
-        setHealthDist(healthData);
-        setDeptParticipation(deptData);
+          HrService.getInsightsSummary(),
+        ];
+
+        const results = await Promise.allSettled(promises);
+
+        if (results[0].status === 'fulfilled') setStats(results[0].value as DashboardStats);
+        else console.warn('getDashboardStats failed:', results[0]);
+
+        if (results[1].status === 'fulfilled') setAlerts(results[1].value as DashboardAlert[]);
+        else console.warn('getDashboardAlerts failed:', results[1]);
+
+        if (results[2].status === 'fulfilled') setHealthDist(results[2].value as FinancialHealthDist);
+        else console.warn('getFinancialHealthDistribution failed:', results[2]);
+
+        if (results[3].status === 'fulfilled') setDeptParticipation(results[3].value as ParticipationDept[]);
+        else console.warn('getParticipationByDepartment failed:', results[3]);
+
+        if (results[4].status === 'fulfilled') setInsights(results[4].value as InsightsSummary);
+        else {
+          // ignore insights missing (some backend deployments may not implement this endpoint)
+          if (import.meta.env.DEV) {
+            console.warn('getInsightsSummary not available or failed:', results[4]);
+          }
+          setInsights(null);
+        }
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
       } finally {
@@ -113,7 +136,8 @@ const Dashboard: React.FC = () => {
 
         {/* Alerts & Insights Section */}
         <div className="space-y-6">
-          <Card className="p-8 border-none shadow-xl bg-[var(--color-bg-card)] overflow-hidden relative">
+          {alerts.length > 0 && (
+            <Card className="p-8 border-none shadow-xl bg-[var(--color-bg-card)] overflow-hidden relative">
             <div className="absolute top-0 right-0 p-4 opacity-5">
               <AlertCircle className="w-24 h-24 text-[var(--color-primary)]" />
             </div>
@@ -123,9 +147,8 @@ const Dashboard: React.FC = () => {
               Critical Alerts
             </h3>
             
-            <div className="space-y-4 relative z-10">
-              {alerts.length > 0 ? (
-                alerts.map((alert, index) => (
+              <div className="space-y-4 relative z-10">
+                {alerts.map((alert, index) => (
                   <div 
                     key={index} 
                     className={`p-4 rounded-2xl border flex gap-3 transition-all hover:scale-[1.02] ${
@@ -139,31 +162,26 @@ const Dashboard: React.FC = () => {
                       <p className="text-xs mt-1 opacity-80 font-medium">{alert.message}</p>
                     </div>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-12">
-                  <div className="w-12 h-12 bg-[var(--color-success-bg)] text-[var(--color-success-darkest)] rounded-2xl flex items-center justify-center mx-auto mb-3">
-                    <Star className="w-6 h-6" />
-                  </div>
-                  <p className="text-[var(--color-text-secondary)] text-sm font-bold uppercase tracking-wider">All systems green</p>
-                  <p className="text-[var(--color-text-tertiary)] text-xs mt-1 font-medium">No critical alerts found.</p>
-                </div>
-              )}
-            </div>
-          </Card>
+                ))}
+              </div>
+            </Card>
+          )}
 
-          <Card className="p-8 bg-[var(--color-primary)] text-white border-none shadow-2xl overflow-hidden relative group">
+          {insights && insights.monthlySummaries && insights.monthlySummaries.length > 0 && (
+            <Card className="p-8 bg-[var(--color-primary)] text-white border-none shadow-2xl overflow-hidden relative group">
              <div className="absolute -bottom-6 -right-6 opacity-10 transition-transform group-hover:scale-110 duration-500">
               <TrendingUp className="w-32 h-32" />
             </div>
             <h3 className="text-lg font-bold font-heading mb-4 relative z-10">Quick Insight</h3>
             <p className="text-sm opacity-90 leading-relaxed relative z-10 font-medium">
-              Employees in the <b>Engineering</b> department show a 15% higher engagement rate after attending financial literacy workshops.
+              {/* Insights available from backend — render dynamic content here when implemented */}
+              View insights to see quick highlights about employee engagement and financial health.
             </p>
             <Button variant="ghost" className="mt-8 px-0 text-xs font-bold uppercase tracking-[0.15em] flex items-center gap-2 hover:translate-x-1 transition-transform relative z-10 text-white hover:bg-white/10">
               View Detailed Report <ArrowUpRight className="w-4 h-4" />
             </Button>
-          </Card>
+            </Card>
+          )}
         </div>
       </div>
     </div>

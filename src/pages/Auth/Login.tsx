@@ -52,14 +52,11 @@ const Login: React.FC = () => {
           <p className="text-sm sm:text-base text-[var(--color-text-secondary)] font-medium">
             Sign in to your organization's wellness dashboard
           </p>
-          <p className="mt-3 text-xs text-[var(--color-text-secondary)] italic font-medium opacity-70">
-            Demo: hr@abc.com / password123
-          </p>
         </div>
 
         {error && (
           <div className="p-4 mb-6 text-sm rounded-2xl bg-[var(--color-error)]/5 border border-[var(--color-error)]/10 text-[var(--color-error)] flex items-center gap-3 font-medium animate-in fade-in zoom-in-95">
-            <AlertCircle className="w-5 h-5 flex-shrink-0" />
+            <AlertCircle className="flex-shrink-0 w-5 h-5" />
             <span>{error}</span>
           </div>
         )}

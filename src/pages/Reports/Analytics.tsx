@@ -17,8 +17,13 @@ const Analytics: React.FC = () => {
         setLoading(true);
         const data = await HrService.getInsightsSummary();
         setInsights(data);
-      } catch (error) {
-        console.error('Failed to fetch insights:', error);
+      } catch (error: any) {
+        // Some backend environments do not expose this endpoint yet.
+        if (error?.response?.status === 404) {
+          setInsights(null);
+        } else {
+          console.error('Failed to fetch insights:', error);
+        }
       } finally {
         setLoading(false);
       }

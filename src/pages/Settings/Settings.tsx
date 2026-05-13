@@ -109,10 +109,16 @@ export const Settings: React.FC = () => {
     setPhotoUploading(true);
     try {
       const result = await HrService.uploadProfilePhoto(file);
-      setProfilePicture(result.profilePhoto);
-      showToast('Profile photo updated!', 'success');
-    } catch {
-      showToast('Failed to upload photo.', 'error');
+      if (result.profilePhoto) {
+        setProfilePicture(result.profilePhoto);
+        showToast('Profile photo updated!', 'success');
+      } else {
+        throw new Error('No profile photo URL returned from server');
+      }
+    } catch (error: any) {
+      console.error('Photo upload error:', error);
+      const errorMsg = error?.message || 'Failed to upload photo.';
+      showToast(errorMsg, 'error');
     } finally {
       setPhotoUploading(false);
       if (photoInputRef.current) photoInputRef.current.value = '';
@@ -125,8 +131,10 @@ export const Settings: React.FC = () => {
       await HrService.removeProfilePhoto();
       setProfilePicture(null);
       showToast('Profile photo removed.', 'success');
-    } catch {
-      showToast('Failed to remove photo.', 'error');
+    } catch (error: any) {
+      console.error('Photo removal error:', error);
+      const errorMsg = error?.message || 'Failed to remove photo.';
+      showToast(errorMsg, 'error');
     } finally {
       setPhotoUploading(false);
     }

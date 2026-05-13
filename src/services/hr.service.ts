@@ -177,14 +177,35 @@ export const HrService = {
   uploadProfilePhoto: async (file: File): Promise<{ profilePhoto: string }> => {
     const formData = new FormData();
     formData.append('image', file);
-    const response = await axiosInstance.patch('/hr/profile/photo', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return response.data;
+    try {
+      const response = await axiosInstance.patch('/hr/profile/photo', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      if (!response.data.profilePhoto) {
+        throw new Error('Server did not return a profile photo URL');
+      }
+      return response.data;
+    } catch (error: any) {
+      console.error('Profile photo upload failed:', error);
+      throw new Error(
+        error?.response?.data?.message || 
+        error?.message || 
+        'Failed to upload profile photo'
+      );
+    }
   },
 
   removeProfilePhoto: async (): Promise<any> => {
-    const response = await axiosInstance.patch('/hr/profile/photo/remove');
-    return response.data;
+    try {
+      const response = await axiosInstance.patch('/hr/profile/photo/remove');
+      return response.data;
+    } catch (error: any) {
+      console.error('Profile photo removal failed:', error);
+      throw new Error(
+        error?.response?.data?.message || 
+        error?.message || 
+        'Failed to remove profile photo'
+      );
+    }
   },
 };

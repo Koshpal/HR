@@ -6,6 +6,7 @@ import './index.css';
 
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastProvider } from './context/ToastContext';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 
 const App: React.FC = () => {
   return (
@@ -17,6 +18,7 @@ const App: React.FC = () => {
           </Router>
         </AuthProvider>
       </ToastProvider>
+      <SpeedInsights />
     </ThemeProvider>
   );
 };

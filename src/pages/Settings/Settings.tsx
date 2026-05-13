@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { User, LogOut, Settings as SettingsIcon, Save, Camera, Building2, Phone, Mail, Briefcase } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { User, LogOut, Settings as SettingsIcon, Save, Camera, Building2, Phone, Mail, Briefcase, Trash2, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { HrService } from '../../services/hr.service';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
-
 import { useToast } from '../../context/ToastContext';
 
 export const Settings: React.FC = () => {
@@ -25,6 +24,8 @@ export const Settings: React.FC = () => {
     companyName: 'Koshpal Corporation', // Fallback
   });
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(
     () => localStorage.getItem('hr_notifications') !== 'false'
   );
@@ -94,6 +95,43 @@ export const Settings: React.FC = () => {
     }
   };
 
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(file.type)) {
+      showToast('Only JPG, PNG or WebP images are allowed.', 'error');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('Image must be under 5 MB.', 'error');
+      return;
+    }
+    setPhotoUploading(true);
+    try {
+      const result = await HrService.uploadProfilePhoto(file);
+      setProfilePicture(result.profilePhoto);
+      showToast('Profile photo updated!', 'success');
+    } catch {
+      showToast('Failed to upload photo.', 'error');
+    } finally {
+      setPhotoUploading(false);
+      if (photoInputRef.current) photoInputRef.current.value = '';
+    }
+  };
+
+  const handleRemovePhoto = async () => {
+    setPhotoUploading(true);
+    try {
+      await HrService.removeProfilePhoto();
+      setProfilePicture(null);
+      showToast('Profile photo removed.', 'success');
+    } catch {
+      showToast('Failed to remove photo.', 'error');
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
+
   const handleLogout = async () => {
     await logout();
     navigate('/login');
@@ -118,16 +156,40 @@ export const Settings: React.FC = () => {
       <Card className="overflow-hidden border-none shadow-xl bg-[var(--color-bg-card)]">
         <div className="p-6 md:p-8 border-b border-[var(--color-border-primary)] flex flex-col md:flex-row items-center gap-8 bg-gradient-to-r from-[var(--color-primary)]/5 to-transparent">
           <div className="relative group">
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/jpeg,image/jpg,image/png,image/webp"
+              className="hidden"
+              onChange={handlePhotoChange}
+            />
             <div className="w-28 h-28 rounded-[2rem] bg-[var(--color-primary)] text-white flex items-center justify-center text-4xl font-bold overflow-hidden shadow-2xl shadow-[var(--color-primary)]/20 border-4 border-white dark:border-slate-800">
-              {profilePicture ? (
+              {photoUploading ? (
+                <Loader2 className="w-8 h-8 animate-spin" />
+              ) : profilePicture ? (
                 <img src={profilePicture} alt="Profile" className="w-full h-full object-cover" />
               ) : (
                 <span>{(formData.fullName[0] || 'H').toUpperCase()}</span>
               )}
             </div>
-            <button className="absolute -bottom-2 -right-2 p-2.5 bg-white dark:bg-slate-800 border border-[var(--color-border-primary)] rounded-2xl shadow-xl text-[var(--color-primary)] hover:scale-110 transition-all">
+            <button
+              type="button"
+              disabled={photoUploading}
+              onClick={() => photoInputRef.current?.click()}
+              className="absolute -bottom-2 -right-2 p-2.5 bg-white dark:bg-slate-800 border border-[var(--color-border-primary)] rounded-2xl shadow-xl text-[var(--color-primary)] hover:scale-110 transition-all disabled:opacity-50"
+            >
               <Camera className="w-4 h-4" />
             </button>
+            {profilePicture && !photoUploading && (
+              <button
+                type="button"
+                onClick={handleRemovePhoto}
+                className="absolute -top-2 -right-2 p-1.5 bg-red-500 text-white rounded-xl shadow-md hover:bg-red-600 transition-all"
+                title="Remove photo"
+              >
+                <Trash2 className="w-3 h-3" />
+              </button>
+            )}
           </div>
           <div className="flex-1 text-center md:text-left">
             <h2 className="text-2xl font-bold text-[var(--color-text-primary)] font-heading">{formData.fullName}</h2>

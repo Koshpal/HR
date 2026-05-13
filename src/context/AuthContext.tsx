@@ -27,16 +27,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const response = await AuthService.login(credentials);
     setUser(response.user);
     localStorage.setItem('user', JSON.stringify(response.user));
-    if (response.accessToken) {
-      localStorage.setItem('token', response.accessToken);
-    }
   };
 
   const logout = async () => {
     await AuthService.logout();
     setUser(null);
     localStorage.removeItem('user');
-    localStorage.removeItem('token');
   };
 
   return (

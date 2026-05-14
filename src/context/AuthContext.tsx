@@ -16,11 +16,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setLoading(false);
+    const initAuth = async () => {
+      // Fast path: restore from localStorage (same-portal login)
+      const raw = localStorage.getItem('user');
+      if (raw) {
+        try {
+          setUser(JSON.parse(raw));
+          setLoading(false);
+          return;
+        } catch {
+          localStorage.removeItem('user');
+        }
+      }
+
+      // Slow path: check the shared .koshpal.com cookie.
+      // Fires when the user was redirected from the landing page after logging in there.
+      try {
+        const me = await AuthService.getCurrentUser();
+        if (me && me.role === 'HR') {
+          setUser(me as any);
+          localStorage.setItem('user', JSON.stringify(me));
+        }
+      } catch {
+        // Not authenticated — ProtectedRoute will redirect to /login
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void initAuth();
   }, []);
 
   const login = async (credentials: any) => {

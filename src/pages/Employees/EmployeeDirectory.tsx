@@ -13,8 +13,10 @@ import { Badge } from '../../components/ui/Badge';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '../../components/ui/Table';
 import AddEmployeeModal from './AddEmployeeModal';
 import BulkImportModal from './BulkImportModal';
+import { useToast } from '../../context/ToastContext';
 
 const EmployeeDirectory: React.FC = () => {
+  const { showToast } = useToast();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [departments, setDepartments] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -114,8 +116,10 @@ const EmployeeDirectory: React.FC = () => {
     setOpenMenuId(null);
     try {
       await HrService.resendCredentials(emp.id);
-    } catch (err) {
+      showToast(`Credentials resent to ${emp.email}`, 'success');
+    } catch (err: any) {
       console.error('Failed to resend credentials:', err);
+      showToast(err?.response?.data?.message || 'Failed to resend credentials. Please try again.', 'error');
     } finally {
       setActionLoading(null);
     }
@@ -129,8 +133,13 @@ const EmployeeDirectory: React.FC = () => {
       setEmployees((prev) =>
         prev.map((e) => e.id === emp.id ? { ...e, isActive: !e.isActive } : e),
       );
-    } catch (err) {
+      showToast(
+        `${emp.name} has been ${emp.isActive ? 'deactivated' : 'activated'} successfully.`,
+        'success',
+      );
+    } catch (err: any) {
       console.error('Failed to update employee status:', err);
+      showToast(err?.response?.data?.message || 'Failed to update employee status. Please try again.', 'error');
     } finally {
       setActionLoading(null);
     }
@@ -265,7 +274,7 @@ const EmployeeDirectory: React.FC = () => {
                         disabled={!!actionLoading}
                         onClick={() => setOpenMenuId((id) => id === emp.id ? null : emp.id)}
                       >
-                        {actionLoading?.startsWith(emp.id) ? (
+                        {(actionLoading === `resend-${emp.id}` || actionLoading === `status-${emp.id}`) ? (
                           <div className="w-4 h-4 border-2 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin" />
                         ) : (
                           <MoreVertical className="w-4 h-4" />

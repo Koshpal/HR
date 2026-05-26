@@ -16,12 +16,13 @@ export const Settings: React.FC = () => {
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [phoneError, setPhoneError] = useState('');
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     phone: '',
     designation: '',
-    companyName: 'Koshpal Corporation', // Fallback
+    companyName: '', // Will be populated from profile
   });
   const [profilePicture, setProfilePicture] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
@@ -40,7 +41,10 @@ export const Settings: React.FC = () => {
         email: profile.email || '',
         phone: profile.phone || '',
         designation: profile.designation || 'HR Manager',
-        companyName: profile.companyId || 'Koshpal Corporation', // Backend might return company name in companyId or a separate field
+        // Use companyName if available, fall back to companyId only if it looks like a name (not a UUID)
+        companyName: profile.companyName ||
+          (profile.companyId && !/^[0-9a-f-]{36}$/i.test(profile.companyId) ? profile.companyId : '') ||
+          'Your Organization',
       });
 
       if (profile.profilePhoto) setProfilePicture(profile.profilePhoto);
@@ -65,10 +69,30 @@ export const Settings: React.FC = () => {
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    if (name === 'phone') {
+      const sanitized = value.replace(/[^\d\s+\-()]/g, '');
+      setFormData({ ...formData, phone: sanitized });
+      if (sanitized && !/^[+\d\s\-()]{7,20}$/.test(sanitized)) {
+        setPhoneError('Enter a valid phone number (7–20 digits).');
+      } else {
+        setPhoneError('');
+      }
+      return;
+    }
+    setFormData({ ...formData, [name]: value });
   };
 
   const handleSaveChanges = async () => {
+    if (phoneError) {
+      showToast('Please fix the phone number before saving.', 'error');
+      return;
+    }
+    if (formData.phone && !/^[+\d\s\-()]{7,20}$/.test(formData.phone.trim())) {
+      setPhoneError('Enter a valid phone number (7–20 digits).');
+      showToast('Please fix the phone number before saving.', 'error');
+      return;
+    }
     try {
       setSaving(true);
       const updateData = {
@@ -171,7 +195,7 @@ export const Settings: React.FC = () => {
               className="hidden"
               onChange={handlePhotoChange}
             />
-            <div className="w-28 h-28 rounded-[2rem] bg-[var(--color-primary)] text-white flex items-center justify-center text-4xl font-bold overflow-hidden shadow-2xl shadow-[var(--color-primary)]/20 border-4 border-white dark:border-slate-800">
+            <div className="w-28 h-28 rounded-[2rem] bg-[var(--color-primary)] text-white flex items-center justify-center text-4xl font-bold overflow-hidden shadow-2xl shadow-[var(--color-primary)]/20 border-4 border-[var(--color-bg-card)]">
               {photoUploading ? (
                 <Loader2 className="w-8 h-8 animate-spin" />
               ) : profilePicture ? (
@@ -184,7 +208,7 @@ export const Settings: React.FC = () => {
               type="button"
               disabled={photoUploading}
               onClick={() => photoInputRef.current?.click()}
-              className="absolute -bottom-2 -right-2 p-2.5 bg-white dark:bg-slate-800 border border-[var(--color-border-primary)] rounded-2xl shadow-xl text-[var(--color-primary)] hover:scale-110 transition-all disabled:opacity-50"
+              className="absolute -bottom-2 -right-2 p-2.5 bg-[var(--color-bg-card)] border border-[var(--color-border-primary)] rounded-2xl shadow-xl text-[var(--color-primary)] hover:scale-110 transition-all disabled:opacity-50"
             >
               <Camera className="w-4 h-4" />
             </button>
@@ -260,9 +284,13 @@ export const Settings: React.FC = () => {
                 name="phone"
                 value={formData.phone}
                 onChange={handleInputChange}
-                className="w-full px-5 py-3.5 bg-[var(--color-bg-secondary)] border border-[var(--color-border-primary)] rounded-2xl outline-none focus:ring-2 focus:ring-[var(--color-primary)] transition-all font-medium text-[var(--color-text-primary)]"
-                placeholder="+1 (555) 000-0000"
+                maxLength={20}
+                className={`w-full px-5 py-3.5 bg-[var(--color-bg-secondary)] border rounded-2xl outline-none focus:ring-2 focus:ring-[var(--color-primary)]/20 focus:border-[var(--color-primary)] transition-all font-medium text-[var(--color-text-primary)] ${phoneError ? 'border-[var(--color-error)]' : 'border-[var(--color-border-primary)]'}`}
+                placeholder="+91 98765 43210"
               />
+              {phoneError && (
+                <p className="text-xs text-[var(--color-error)] mt-1">{phoneError}</p>
+              )}
             </div>
           </div>
 
@@ -323,7 +351,7 @@ export const Settings: React.FC = () => {
       </Card>
 
       {/* Danger Zone */}
-      <Card className="p-8 border border-red-100 dark:border-red-900/30 bg-red-50/50 dark:bg-red-900/5 flex flex-col md:flex-row items-center justify-between gap-6">
+      <Card className="p-8 border border-[var(--color-error)]/20 bg-[var(--color-error)]/5 flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="text-center md:text-left">
           <h2 className="text-xl font-bold text-red-600 font-heading">Account Actions</h2>
           <p className="text-sm text-[var(--color-text-secondary)] font-medium">Logging out will securely end your current HR session.</p>

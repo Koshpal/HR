@@ -21,7 +21,11 @@ const Login: React.FC = () => {
       setError('Please enter both email and password');
       return;
     }
-    
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
     setError(null);
     setIsLoading(true);
 
@@ -74,23 +78,30 @@ const Login: React.FC = () => {
             />
           </div>
 
-          <div className="relative space-y-2">
-            <Input
-              label="Password"
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Enter your password"
-              icon={Lock}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-4 top-[50%] translate-y-[-50%] text-[var(--color-text-tertiary)] hover:text-[var(--color-primary)] transition-colors p-1"
-            >
-              {showPassword ? <EyeOff className="w-6 h-6" /> : <Eye className="w-6 h-6" />}
-            </button>
+          {/* Password field — manual markup so the eye toggle sits inside the input's own relative container */}
+          <div className="w-full space-y-1.5">
+            <label className="text-xs font-bold text-[var(--color-text-secondary)] uppercase tracking-wider ml-1">
+              Password
+            </label>
+            <div className="relative group">
+              <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--color-text-tertiary)] group-focus-within:text-[var(--color-primary)] transition-colors" />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full bg-[var(--color-bg-card)] border border-[var(--color-border-primary)] rounded-xl pl-11 pr-11 py-2.5 text-sm outline-none transition-all focus:border-[var(--color-primary)] focus:ring-4 focus:ring-[var(--color-primary)]/5"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)] hover:text-[var(--color-primary)] transition-colors p-1"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
 
           <div className="flex items-center justify-between gap-2 pt-2">

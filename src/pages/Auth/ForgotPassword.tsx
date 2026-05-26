@@ -22,9 +22,13 @@ const ForgotPassword = () => {
   const handleRequestOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError('Please enter a valid email address.');
+      return;
+    }
     setLoading(true);
     try {
-      await AuthService.forgotPassword(email);
+      await AuthService.forgotPassword(email.trim().toLowerCase());
       setSuccess('OTP has been sent to your email');
       setStep('otp');
     } catch (err: any) {
@@ -37,6 +41,10 @@ const ForgotPassword = () => {
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    if (newPassword.length < 8) {
+      setError('Password must be at least 8 characters.');
+      return;
+    }
     if (newPassword !== confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -141,10 +149,17 @@ const ForgotPassword = () => {
                     type={showNewPassword ? 'text' : 'password'}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Min. 8 characters"
+                    minLength={8}
                     className="w-full pl-12 pr-12 py-4 bg-[var(--color-bg-tertiary)] border border-[var(--color-border-primary)] rounded-2xl outline-none focus:ring-2 focus:ring-[var(--color-primary)] transition-all"
                     required
                   />
-                  <button type="button" onClick={() => setShowNewPassword(!showNewPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)]">
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)] hover:text-[var(--color-primary)] transition-colors p-1"
+                    aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                  >
                     {showNewPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
@@ -158,10 +173,16 @@ const ForgotPassword = () => {
                     type={showConfirmPassword ? 'text' : 'password'}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Repeat your new password"
                     className="w-full pl-12 pr-12 py-4 bg-[var(--color-bg-tertiary)] border border-[var(--color-border-primary)] rounded-2xl outline-none focus:ring-2 focus:ring-[var(--color-primary)] transition-all"
                     required
                   />
-                  <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)]">
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)] hover:text-[var(--color-primary)] transition-colors p-1"
+                    aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                  >
                     {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>

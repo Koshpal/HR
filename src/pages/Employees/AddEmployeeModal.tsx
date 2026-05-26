@@ -17,6 +17,7 @@ interface FormState {
   email: string;
   phone: string;
   department: string;
+  _customDept?: string;
   employeeCode: string;
   joiningDate: string;
 }
@@ -46,6 +47,8 @@ function validateForm(form: FormState): FormErrors {
     errors.fullName = 'Full name is required';
   } else if (form.fullName.trim().length < 2) {
     errors.fullName = 'Full name must be at least 2 characters';
+  } else if (form.fullName.trim().length > 100) {
+    errors.fullName = 'Full name must be under 100 characters';
   }
 
   if (!form.email.trim()) {
@@ -54,8 +57,21 @@ function validateForm(form: FormState): FormErrors {
     errors.email = 'Please enter a valid email address';
   }
 
-  if (form.joiningDate && isNaN(new Date(form.joiningDate).getTime())) {
-    errors.joiningDate = 'Please enter a valid date';
+  if (form.phone.trim() && !/^[+\d\s\-()]{7,20}$/.test(form.phone.trim())) {
+    errors.phone = 'Enter a valid phone number (digits, spaces, +, -, parentheses)';
+  }
+
+  if (form.employeeCode.trim() && form.employeeCode.trim().length > 20) {
+    errors.employeeCode = 'Employee code must be under 20 characters';
+  }
+
+  if (form.joiningDate) {
+    const d = new Date(form.joiningDate);
+    if (isNaN(d.getTime())) {
+      errors.joiningDate = 'Please enter a valid date';
+    } else if (d > new Date()) {
+      errors.joiningDate = 'Joining date cannot be in the future';
+    }
   }
 
   return errors;
@@ -71,7 +87,12 @@ const AddEmployeeModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, departm
   const handleChange = (field: keyof FormState) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
   ) => {
-    setForm((prev) => ({ ...prev, [field]: e.target.value }));
+    let value = e.target.value;
+    // Restrict phone field to valid phone characters only
+    if (field === 'phone') {
+      value = value.replace(/[^\d\s+\-()]/g, '');
+    }
+    setForm((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: undefined }));
     setApiError(null);
   };
@@ -87,11 +108,17 @@ const AddEmployeeModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, departm
     setLoading(true);
     setApiError(null);
 
+    // Resolve department: use custom value if "other" was selected
+    const resolvedDepartment =
+      form.department === '__other__'
+        ? (form._customDept || '').trim()
+        : form.department.trim();
+
     const payload: CreateEmployeePayload = {
       fullName: form.fullName.trim(),
       email: form.email.trim().toLowerCase(),
       ...(form.phone.trim() && { phone: form.phone.trim() }),
-      ...(form.department.trim() && { department: form.department.trim() }),
+      ...(resolvedDepartment && { department: resolvedDepartment }),
       ...(form.employeeCode.trim() && { employeeCode: form.employeeCode.trim() }),
       ...(form.joiningDate && { joiningDate: form.joiningDate }),
     };
@@ -212,10 +239,12 @@ const AddEmployeeModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, departm
           <Input
             label="Phone"
             icon={Phone}
+            type="tel"
             placeholder="+91-9876543210"
             value={form.phone}
             onChange={handleChange('phone')}
             error={errors.phone}
+            maxLength={20}
           />
           <Input
             label="Employee Code"
@@ -251,9 +280,14 @@ const AddEmployeeModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, departm
               </div>
               {form.department === '__other__' && (
                 <Input
+                  label="Custom Department Name"
                   placeholder="Enter department name"
-                  value=""
-                  onChange={(e) => setForm((p) => ({ ...p, department: e.target.value }))}
+                  value={form._customDept || ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setForm((p) => ({ ...p, _customDept: val }));
+                  }}
+                  autoFocus
                 />
               )}
             </div>
@@ -275,6 +309,7 @@ const AddEmployeeModal: React.FC<Props> = ({ isOpen, onClose, onSuccess, departm
             value={form.joiningDate}
             onChange={handleChange('joiningDate')}
             error={errors.joiningDate}
+            max={new Date().toISOString().split('T')[0]}
           />
         </div>
 

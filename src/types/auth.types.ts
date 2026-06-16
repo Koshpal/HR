@@ -19,5 +19,6 @@ export interface HrProfile {
   phone?: string;
   designation?: string;
   companyId: string;
+  companyName?: string;
   profilePhoto?: string;
 }

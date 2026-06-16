@@ -27,6 +27,7 @@ interface FormErrors {
   email?: string;
   phone?: string;
   department?: string;
+  _customDept?: string;
   employeeCode?: string;
   joiningDate?: string;
 }

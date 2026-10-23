@@ -11,6 +11,16 @@ export interface Employee {
   isActive: boolean;
   phone?: string;
   dateOfJoining?: string;
+  profilePhoto?: string | null;
+  inviteEmailFailed?: boolean;
+}
+
+export interface EmployeePage {
+  data: Employee[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 }
 
 export interface Department {

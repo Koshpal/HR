@@ -1,69 +1,90 @@
 import React, { useEffect, useState } from 'react';
-import { 
-  Users, 
-  TrendingUp, 
-  Star, 
-  Calendar,
-  ArrowUpRight,
-  AlertCircle
-} from 'lucide-react';
 import { HrService } from '../../services/hr.service';
-import type { 
-  DashboardStats, 
-  DashboardAlert, 
-  FinancialHealthDist, 
+import type {
+  DashboardStats,
+  DashboardAlert,
+  FinancialHealthDist,
   ParticipationDept,
-  InsightsSummary,
+  StatsPeriod,
 } from '../../types/dashboard.types';
 import HealthDistributionChart from '../../components/dashboard/HealthDistributionChart';
 import DepartmentParticipationChart from '../../components/dashboard/DepartmentParticipationChart';
-import { StatCard } from '../../components/ui/StatCard';
-import { Card } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
+import AlertsCard from '../../components/dashboard/AlertsCard';
+import { FigmaIcon } from '../../components/common/FigmaIcon';
+import { figma } from '../../assets/figma';
+
+interface SummaryCardProps {
+  bg: string;
+  iconBg: string;
+  iconClass: string;
+  icon: string;
+  labelClass: string;
+  label: string;
+  value: string | number;
+}
+
+/** Figma "Summary" tile: 44px icon chip, 16/26 label, 24/44 value. */
+const SummaryCard: React.FC<SummaryCardProps> = ({ bg, iconBg, iconClass, icon, labelClass, label, value }) => (
+  <div className={`flex min-w-0 flex-1 flex-col items-center justify-center rounded-[16px] px-4 py-6 ${bg}`}>
+    <div className="flex h-[118px] w-full flex-col items-start justify-center gap-4">
+      <div className={`flex size-[44px] shrink-0 items-center ${iconBg} ${iconClass}`}>
+        <FigmaIcon src={icon} size={20} />
+      </div>
+      <div className="flex w-full flex-col items-start">
+        <p className={`w-full font-jakarta text-[16px] font-normal leading-[26px] ${labelClass}`}>{label}</p>
+        <div className="flex h-8 w-full items-center">
+          <p className="whitespace-nowrap font-jakarta text-[24px] font-semibold leading-[44px] text-neutral-800">
+            {value}
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const PERIODS: Array<{ value: StatsPeriod; label: string; unit: string }> = [
+  { value: 'weekly', label: 'Weekly', unit: 'WEEK' },
+  { value: 'monthly', label: 'Monthly', unit: 'MONTH' },
+  { value: 'quarterly', label: 'Quarterly', unit: 'QUARTER' },
+  { value: 'yearly', label: 'Yearly', unit: 'YEAR' },
+];
 
 const Dashboard: React.FC = () => {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [alerts, setAlerts] = useState<DashboardAlert[]>([]);
   const [healthDist, setHealthDist] = useState<FinancialHealthDist | null>(null);
   const [deptParticipation, setDeptParticipation] = useState<ParticipationDept[]>([]);
-  const [insights, setInsights] = useState<InsightsSummary | null>(null);
+  const [period, setPeriod] = useState<StatsPeriod>('monthly');
   const [loading, setLoading] = useState(true);
+
+  // Summary tiles follow the period selector
+  useEffect(() => {
+    let ignore = false;
+    HrService.getDashboardStats(period)
+      .then((result) => { if (!ignore) setStats(result); })
+      .catch((error) => console.warn('getDashboardStats failed:', error));
+    return () => { ignore = true; };
+  }, [period]);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
 
-        const promises = [
-          HrService.getDashboardStats(),
+        const results = await Promise.allSettled([
           HrService.getDashboardAlerts(),
           HrService.getFinancialHealthDistribution(),
           HrService.getParticipationByDepartment(),
-          HrService.getInsightsSummary(),
-        ];
+        ]);
 
-        const results = await Promise.allSettled(promises);
+        if (results[0].status === 'fulfilled') setAlerts(results[0].value);
+        else console.warn('getDashboardAlerts failed:', results[0]);
 
-        if (results[0].status === 'fulfilled') setStats(results[0].value as DashboardStats);
-        else console.warn('getDashboardStats failed:', results[0]);
+        if (results[1].status === 'fulfilled') setHealthDist(results[1].value);
+        else console.warn('getFinancialHealthDistribution failed:', results[1]);
 
-        if (results[1].status === 'fulfilled') setAlerts(results[1].value as DashboardAlert[]);
-        else console.warn('getDashboardAlerts failed:', results[1]);
-
-        if (results[2].status === 'fulfilled') setHealthDist(results[2].value as FinancialHealthDist);
-        else console.warn('getFinancialHealthDistribution failed:', results[2]);
-
-        if (results[3].status === 'fulfilled') setDeptParticipation(results[3].value as ParticipationDept[]);
-        else console.warn('getParticipationByDepartment failed:', results[3]);
-
-        if (results[4].status === 'fulfilled') setInsights(results[4].value as InsightsSummary);
-        else {
-          // ignore insights missing (some backend deployments may not implement this endpoint)
-          if (import.meta.env.DEV) {
-            console.warn('getInsightsSummary not available or failed:', results[4]);
-          }
-          setInsights(null);
-        }
+        if (results[2].status === 'fulfilled') setDeptParticipation(results[2].value);
+        else console.warn('getParticipationByDepartment failed:', results[2]);
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
       } finally {
@@ -74,116 +95,88 @@ const Dashboard: React.FC = () => {
     fetchDashboardData();
   }, []);
 
+  const periodInfo = PERIODS.find((p) => p.value === period) ?? PERIODS[1];
+
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <div className="w-12 h-12 border-4 border-[var(--color-primary)] border-t-transparent rounded-full animate-spin"></div>
-        <p className="mt-4 text-[var(--color-text-secondary)] font-medium">Loading your dashboard...</p>
+      <div className="flex min-h-[60vh] flex-col items-center justify-center">
+        <div className="size-12 animate-spin rounded-full border-4 border-solid border-primary-600 border-t-transparent" />
+        <p className="mt-4 font-outfit text-[14px] leading-6 text-neutral-500">Loading your dashboard...</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-10 animate-fade-in">
-      <header className="flex flex-col gap-4 rounded-[2.5rem] border border-[var(--color-border-primary)] bg-[var(--color-bg-card)] p-8 shadow-sm md:flex-row md:items-end md:justify-between">
-        <div className="space-y-2">
-          <p className="text-[10px] font-bold uppercase tracking-[0.24em] text-[var(--color-primary)]">Company dashboard</p>
-          <div>
-            <h1 className="text-3xl font-bold font-heading text-[var(--color-text-primary)]">Overview</h1>
-            <p className="mt-1 max-w-2xl text-sm text-[var(--color-text-secondary)] font-medium">
-              Real-time insights into employee financial wellness and program engagement.
-            </p>
-          </div>
+    <div className="mt-4 flex flex-col gap-8">
+      {/* Summary */}
+      <section className="flex flex-col gap-4 rounded-[8px] bg-white p-4 shadow-low">
+        <div className="flex w-full items-center justify-between">
+          <p className="font-jakarta text-[18px] font-semibold leading-8 text-neutral-800">Summary</p>
+          {/* Figma dropdown face over a native select */}
+          <label className="relative flex h-10 cursor-pointer items-center justify-center gap-1 rounded-[8px] border border-solid border-neutral-100 pl-4 pr-2.5 transition-colors focus-within:border-primary-600">
+            <span className="font-outfit text-[14px] font-normal leading-6 text-neutral-700">{periodInfo.label}</span>
+            <FigmaIcon src={figma.angleDown} size={20} />
+            <select
+              aria-label="Summary period"
+              className="absolute inset-0 size-full cursor-pointer opacity-0"
+              value={period}
+              onChange={(e) => setPeriod(e.target.value as StatsPeriod)}
+            >
+              {PERIODS.map((p) => (
+                <option key={p.value} value={p.value}>{p.label}</option>
+              ))}
+            </select>
+          </label>
         </div>
-      </header>
 
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard 
-          title="Monitored Employees" 
-          value={stats?.employeeMonitored || 0}
-          icon={Users}
-          trend={stats?.employeeMonitoredChange ? { value: parseFloat(stats.employeeMonitoredChange), isPositive: stats.employeeMonitoredChange.startsWith('+') } : undefined}
-        />
-        <StatCard 
-          title="Avg Financial Health" 
-          value={`${stats?.avgFinancialHealth || 0}/100`}
-          icon={TrendingUp}
-        />
-        <StatCard 
-          title="Participation Rate" 
-          value={`${stats?.participationRate || 0}%`}
-          icon={Star}
-          trend={stats?.participationRateChange ? { value: parseFloat(stats.participationRateChange), isPositive: stats.participationRateChange.startsWith('+') } : undefined}
-        />
-        <StatCard 
-          title="Sessions This Month" 
-          value={stats?.sessionsThisPeriod || 0}
-          icon={Calendar}
-        />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:flex lg:h-[196px]">
+          <SummaryCard
+            bg="bg-success-50"
+            iconBg="bg-success-500"
+            iconClass="rounded-[24.917px] p-[11.5px]"
+            icon={figma.iconCheck}
+            labelClass="text-success-900"
+            label="Monitored Employees"
+            value={stats ? stats.employeeMonitored : '—'}
+          />
+          <SummaryCard
+            bg="bg-info-50"
+            iconBg="bg-primary-300"
+            iconClass="rounded-[26px] p-3"
+            icon={figma.iconTrendUpCircle}
+            labelClass="text-primary-800"
+            label="AVG FINANCIAL HEALTH"
+            value={stats ? `${stats.avgFinancialHealth}/ 100` : '—'}
+          />
+          <SummaryCard
+            bg="bg-warning-50"
+            iconBg="bg-warning-500"
+            iconClass="rounded-[26px] p-3"
+            icon={figma.iconUserEye}
+            labelClass="text-warning-900"
+            label="PARTICIPATION RATE"
+            value={stats ? `${stats.participationRate}%` : '—'}
+          />
+          <SummaryCard
+            bg="bg-secondary-50"
+            iconBg="bg-secondary-600"
+            iconClass="rounded-[26px] p-3"
+            icon={figma.iconClock}
+            labelClass="text-secondary-800"
+            label={`SESSIONS THIS ${periodInfo.unit}`}
+            value={stats ? stats.sessionsThisPeriod : '—'}
+          />
+        </div>
+      </section>
+
+      {/* Financial Health Distribution + Alerts */}
+      <div className="flex flex-col items-stretch gap-8 lg:flex-row lg:items-center">
+        <HealthDistributionChart data={healthDist} />
+        <AlertsCard alerts={alerts} />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Charts Section */}
-        <div className="lg:col-span-2 space-y-8">
-          <Card className="p-8">
-            <HealthDistributionChart data={healthDist} />
-          </Card>
-          <Card className="p-8">
-            <DepartmentParticipationChart data={deptParticipation} />
-          </Card>
-        </div>
-
-        {/* Alerts & Insights Section */}
-        <div className="space-y-6">
-          {alerts.length > 0 && (
-            <Card className="p-8 border-none shadow-xl bg-[var(--color-bg-card)] overflow-hidden relative">
-            <div className="absolute top-0 right-0 p-4 opacity-5">
-              <AlertCircle className="w-24 h-24 text-[var(--color-primary)]" />
-            </div>
-            
-            <h3 className="text-lg font-bold font-heading mb-6 flex items-center gap-2 relative z-10 text-[var(--color-text-primary)]">
-              <AlertCircle className="w-5 h-5 text-[var(--color-primary)]" />
-              Critical Alerts
-            </h3>
-            
-              <div className="space-y-4 relative z-10">
-                {alerts.map((alert, index) => (
-                  <div 
-                    key={index} 
-                    className={`p-4 rounded-2xl border flex gap-3 transition-all hover:scale-[1.02] ${
-                      alert.type === 'error' ? 'bg-[var(--color-error)]/5 border-[var(--color-error)]/10 text-[var(--color-error)]' :
-                      alert.type === 'warning' ? 'bg-[var(--color-warning-bg)] border-[var(--color-warning)]/10 text-[var(--color-warning-darkest)]' :
-                      'bg-[var(--color-success-bg)] border-[var(--color-success)]/10 text-[var(--color-success-darkest)]'
-                    }`}
-                  >
-                    <div className="flex-1">
-                      <p className="font-bold text-sm leading-tight">{alert.title}</p>
-                      <p className="text-xs mt-1 opacity-80 font-medium">{alert.message}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          {insights && insights.monthlySummaries && insights.monthlySummaries.length > 0 && (
-            <Card className="p-8 bg-[var(--color-primary)] text-white border-none shadow-2xl overflow-hidden relative group">
-             <div className="absolute -bottom-6 -right-6 opacity-10 transition-transform group-hover:scale-110 duration-500">
-              <TrendingUp className="w-32 h-32" />
-            </div>
-            <h3 className="text-lg font-bold font-heading mb-4 relative z-10">Quick Insight</h3>
-            <p className="text-sm opacity-90 leading-relaxed relative z-10 font-medium">
-              {/* Insights available from backend — render dynamic content here when implemented */}
-              View insights to see quick highlights about employee engagement and financial health.
-            </p>
-            <Button variant="ghost" className="mt-8 px-0 text-xs font-bold uppercase tracking-[0.15em] flex items-center gap-2 hover:translate-x-1 transition-transform relative z-10 text-white hover:bg-white/10">
-              View Detailed Report <ArrowUpRight className="w-4 h-4" />
-            </Button>
-            </Card>
-          )}
-        </div>
-      </div>
+      {/* Participation by Department */}
+      <DepartmentParticipationChart data={deptParticipation} />
     </div>
   );
 };

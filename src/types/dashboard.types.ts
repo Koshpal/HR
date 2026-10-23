@@ -7,13 +7,17 @@ export interface DashboardStats {
   participationRateChange: string;
   sessionsThisPeriod: number;
   sessionsRate: string;
+  period?: StatsPeriod;
 }
+
+export type StatsPeriod = 'weekly' | 'monthly' | 'quarterly' | 'yearly';
 
 export interface FinancialHealthDist {
   distribution: Array<{
     category: string;
     value: number;
     range: string;
+    count?: number;
   }>;
   total: number;
 }

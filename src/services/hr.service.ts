@@ -1,11 +1,12 @@
 import { axiosInstance } from './api';
-import type { Employee, UploadBatch } from '../types/employee.types';
+import type { Employee, UploadBatch, EmployeePage } from '../types/employee.types';
 import type {
   DashboardStats,
   FinancialHealthDist,
   ParticipationDept,
   DashboardAlert,
   InsightsSummary,
+  StatsPeriod,
 } from '../types/dashboard.types';
 import type { HrProfile } from '../types/auth.types';
 
@@ -52,8 +53,13 @@ export interface BulkImportResult {
 export const HrService = {
   // ── Employee Management ──────────────────────────────────────────────────
 
-  getEmployees: async (): Promise<Employee[]> => {
-    const response = await axiosInstance.get('/hr/employees');
+  getEmployees: async (params: {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    department?: string;
+  } = {}): Promise<EmployeePage> => {
+    const response = await axiosInstance.get('/hr/employees', { params });
     return response.data;
   },
 
@@ -128,8 +134,8 @@ export const HrService = {
 
   // ── Dashboard & Insights ──────────────────────────────────────────────────
 
-  getDashboardStats: async (): Promise<DashboardStats> => {
-    const response = await axiosInstance.get('/hr/dashboard/stats');
+  getDashboardStats: async (period: StatsPeriod = 'monthly'): Promise<DashboardStats> => {
+    const response = await axiosInstance.get('/hr/dashboard/stats', { params: { period } });
     return response.data;
   },
 
@@ -148,9 +154,25 @@ export const HrService = {
     return response.data;
   },
 
-  getCompanySessions: async (page = 1, pageSize = 50): Promise<any> => {
-    const response = await axiosInstance.get('/hr/sessions', { params: { page, pageSize } });
+  getCompanySessions: async (page = 1, pageSize = 50, search?: string): Promise<any> => {
+    const response = await axiosInstance.get('/hr/sessions', { params: { page, pageSize, search } });
     return response.data;
+  },
+
+  /** Downloads every company session as a CSV file (optionally narrowed by the same search). */
+  exportCompanySessions: async (search?: string): Promise<void> => {
+    const response = await axiosInstance.get('/hr/sessions/export', {
+      params: { search },
+      responseType: 'blob',
+    });
+    const url = URL.createObjectURL(response.data as Blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'koshpal_sessions.csv';
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   },
 
   getInsightsSummary: async (): Promise<InsightsSummary> => {

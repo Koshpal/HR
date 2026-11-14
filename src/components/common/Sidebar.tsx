@@ -42,6 +42,12 @@ const mainItems: Item[] = [
     path: '/sessions',
     match: (p) => p.startsWith('/sessions'),
   },
+  {
+    icon: figma.iconTrendUpCircle,
+    label: 'Coaching',
+    path: '/coaching',
+    match: (p) => p.startsWith('/coaching'),
+  },
 ];
 
 /**

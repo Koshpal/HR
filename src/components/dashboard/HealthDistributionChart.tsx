@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import type { FinancialHealthDist } from '../../types/dashboard.types';
 import { figma } from '../../assets/figma';
 
+/** Plain numbers only: the dashboard turns figures the server hid into zeros before drawing. */
 interface Props {
-  data: FinancialHealthDist | null;
+  data: { distribution: Array<{ category: string; value: number; range?: string; count?: number }>; total: number } | null;
 }
 
 // Figma bar colours in order: Primary/600, Secondary/500, Warning/500 (+ Error/600 when the API sends a 4th band).

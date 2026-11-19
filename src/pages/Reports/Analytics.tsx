@@ -1,36 +1,37 @@
-import React, { useState, useEffect } from 'react';
-import { Download, DollarSign, Wallet, PiggyBank, BarChart3, PieChart } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Printer, Wallet, PiggyBank, TrendingUp, ShieldCheck } from 'lucide-react';
 import { HrService } from '../../services/hr.service';
 import type { InsightsSummary } from '../../types/dashboard.types';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { StatCard } from '../../components/ui/StatCard';
 import InsightsTrendChart from '../../components/dashboard/InsightsTrendChart';
+import { hiddenNote, isSuppressed, showGuarded } from '../../utils/privacy';
+
+const inr = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 
 const Analytics: React.FC = () => {
   const [insights, setInsights] = useState<InsightsSummary | null>(null);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
-    const fetchInsights = async () => {
-      try {
-        setLoading(true);
-        const data = await HrService.getInsightsSummary();
-        setInsights(data);
-      } catch (error: any) {
-        // Some backend environments do not expose this endpoint yet.
-        if (error?.response?.status === 404) {
-          setInsights(null);
-        } else {
-          console.error('Failed to fetch insights:', error);
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchInsights();
+    let ignore = false;
+    HrService.getInsightsSummary()
+      .then((d) => { if (!ignore) setInsights(d); })
+      .catch((error) => { console.error('Failed to fetch insights:', error); if (!ignore) setFailed(true); })
+      .finally(() => { if (!ignore) setLoading(false); });
+    return () => { ignore = true; };
   }, []);
+
+  // The chart draws months whose figures are visible. Newest first: the chart flips it itself.
+  const trend = useMemo(
+    () => (insights?.monthlySummaries ?? [])
+      .filter((m) => !isSuppressed(m.totalIncome))
+      .map((m) => ({ month: m.month, year: m.year, totalIncome: m.totalIncome as number, totalExpense: m.totalExpense as number, netSavings: m.netSavings as number }))
+      .reverse(),
+    [insights],
+  );
 
   if (loading) {
     return (
@@ -40,6 +41,16 @@ const Analytics: React.FC = () => {
       </div>
     );
   }
+  if (failed || !insights) {
+    return (
+      <Card className="p-10 text-center">
+        <p className="text-[var(--color-text-primary)] font-semibold">We couldn't load your analytics.</p>
+        <p className="mt-1 text-sm text-[var(--color-text-secondary)]">Check your connection and reload the page.</p>
+      </Card>
+    );
+  }
+
+  const note = isSuppressed(insights.aggregatedIncome) ? hiddenNote(insights.minCohortSize) : undefined;
 
   return (
     <div className="space-y-10 animate-fade-in">
@@ -49,79 +60,43 @@ const Analytics: React.FC = () => {
           <div>
             <h1 className="text-3xl font-bold font-heading text-[var(--color-text-primary)]">Advanced Analytics</h1>
             <p className="mt-1 max-w-2xl text-sm text-[var(--color-text-secondary)] font-medium">
-              Aggregated financial metrics and longitudinal trends for your workforce.
+              Combined money figures from employees who chose to share them with HR. No individual is ever shown.
             </p>
           </div>
         </div>
-        <Button variant="secondary" className="gap-2 px-6">
-          <Download className="w-4 h-4" />
-          Export PDF Report
+        <Button variant="secondary" className="gap-2 px-6 print:hidden" onClick={() => window.print()}>
+          <Printer className="w-4 h-4" />
+          Print / save as PDF
         </Button>
       </header>
 
-      {/* Aggregate Metrics */}
+      <div className="flex items-start gap-3 rounded-2xl border border-[var(--color-border-primary)] bg-[var(--color-bg-secondary)] p-4 text-sm text-[var(--color-text-secondary)]">
+        <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[var(--color-primary)]" />
+        <p>
+          {showGuarded(insights.sharingEmployees, (n) => `${n} of ${insights.totalEmployees} employees`, 'Too few employees')} share their data with HR.{' '}
+          {insights.privacyNote} {note}
+        </p>
+      </div>
+
+      {/* Latest month with enough people behind it */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard 
-          title="Workforce Income" 
-          value={`$${((insights?.aggregatedIncome || 0) / 1000000).toFixed(1)}M`}
-          icon={DollarSign}
-        />
-        <StatCard 
-          title="Workforce Expenses" 
-          value={`$${((insights?.aggregatedExpense || 0) / 1000000).toFixed(1)}M`}
-          icon={Wallet}
-        />
-        <StatCard 
-          title="Net Employee Savings" 
-          value={`$${((insights?.aggregatedSavings || 0) / 1000000).toFixed(1)}M`}
-          icon={PiggyBank}
-        />
+        <StatCard title="Workforce Income (latest month)" value={showGuarded(insights.aggregatedIncome, inr)} icon={TrendingUp} />
+        <StatCard title="Workforce Expenses (latest month)" value={showGuarded(insights.aggregatedExpense, inr)} icon={Wallet} />
+        <StatCard title="Net Employee Savings (latest month)" value={showGuarded(insights.aggregatedSavings, inr)} icon={PiggyBank} />
       </div>
 
-      <div className="grid grid-cols-1 gap-8">
-        <Card className="p-10">
-          <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-4">
-            <div>
-              <h3 className="text-xl font-bold font-heading text-[var(--color-text-primary)]">Financial Health Trends</h3>
-              <p className="text-sm text-[var(--color-text-secondary)] mt-1 font-medium">Aggregated monthly income, expenses, and savings across all departments.</p>
-            </div>
-            <div className="flex gap-2">
-              <span className="px-4 py-2 rounded-xl bg-[var(--color-bg-secondary)] text-[var(--color-text-primary)] text-xs font-bold border border-[var(--color-border-primary)]">Last 12 Months</span>
-            </div>
+      <Card className="p-10">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-10 gap-4">
+          <div>
+            <h3 className="text-xl font-bold font-heading text-[var(--color-text-primary)]">Financial Health Trends</h3>
+            <p className="text-sm text-[var(--color-text-secondary)] mt-1 font-medium">Combined monthly income, expenses and savings (₹) of employees who share with HR.</p>
           </div>
-          <div className="h-[400px]">
-             <InsightsTrendChart data={insights?.monthlySummaries || []} />
-          </div>
-        </Card>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <Card className="p-10 group cursor-default hover:border-[var(--color-primary)]/30 transition-all">
-            <div className="w-14 h-14 bg-[var(--color-primary)]/10 rounded-2xl flex items-center justify-center text-[var(--color-primary)] mb-8 transition-transform group-hover:scale-110 duration-500">
-              <BarChart3 className="w-7 h-7" />
-            </div>
-            <h3 className="text-xl font-bold font-heading text-[var(--color-text-primary)]">Departmental ROI Analysis</h3>
-            <p className="text-sm text-[var(--color-text-secondary)] mt-3 leading-relaxed font-medium">
-              Compare the financial health improvement across different business units to identify high-impact areas for future coaching programs.
-            </p>
-            <Button variant="ghost" className="mt-8 px-0 text-sm font-bold text-[var(--color-primary)] hover:translate-x-1 transition-transform uppercase tracking-wider">
-              Explore Departmental Data &rarr;
-            </Button>
-          </Card>
-
-          <Card className="p-10 group cursor-default hover:border-[var(--color-secondary)]/30 transition-all">
-            <div className="w-14 h-14 bg-[var(--color-secondary)]/10 rounded-2xl flex items-center justify-center text-[var(--color-secondary)] mb-8 transition-transform group-hover:scale-110 duration-500">
-              <PieChart className="w-7 h-7" />
-            </div>
-            <h3 className="text-xl font-bold font-heading text-[var(--color-text-primary)]">Engagement Segmentation</h3>
-            <p className="text-sm text-[var(--color-text-secondary)] mt-3 leading-relaxed font-medium">
-              Break down your workforce into participation segments (Active vs. Passive) and analyze the financial impact of coaching engagement.
-            </p>
-            <Button variant="ghost" className="mt-8 px-0 text-sm font-bold text-[var(--color-secondary)] hover:translate-x-1 transition-transform uppercase tracking-wider">
-              View Segmentation &rarr;
-            </Button>
-          </Card>
+          <span className="px-4 py-2 rounded-xl bg-[var(--color-bg-secondary)] text-[var(--color-text-primary)] text-xs font-bold border border-[var(--color-border-primary)]">Last 6 months</span>
         </div>
-      </div>
+        <div className="h-[400px]">
+          <InsightsTrendChart data={trend} />
+        </div>
+      </Card>
     </div>
   );
 };

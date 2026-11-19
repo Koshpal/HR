@@ -1,8 +1,8 @@
 import React from 'react';
-import type { ParticipationDept } from '../../types/dashboard.types';
 
+/** Plain numbers only: the dashboard turns figures the server hid into zeros before drawing. */
 interface Props {
-  data: ParticipationDept[];
+  data: Array<{ department: string; participationRate: number }>;
 }
 
 // Geometry lifted from the Figma "Participation by Department" graph (845px-wide plot).

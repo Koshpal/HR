@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { UserCheck } from 'lucide-react';
+import { Pencil, UserCheck } from 'lucide-react';
 import { HrService } from '../../services/hr.service';
 import type { Employee } from '../../types/employee.types';
 import AddEmployeeModal from './AddEmployeeModal';
 import BulkImportModal from './BulkImportModal';
+import EditEmployeeModal from './EditEmployeeModal';
+import { Modal } from '../../components/ui/Modal';
+import { Button } from '../../components/ui/Button';
 import { useToast } from '../../context/ToastContext';
 import { figma } from '../../assets/figma';
 import { FigmaIcon } from '../../components/common/FigmaIcon';
@@ -53,6 +56,9 @@ const EmployeeDirectory: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedDept, setSelectedDept] = useState('All');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'invited' | 'onboarded' | 'inactive'>('all');
+  const [editing, setEditing] = useState<Employee | null>(null);
+  const [toDeactivate, setToDeactivate] = useState<Employee | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [reloadKey, setReloadKey] = useState(0);
   const itemsPerPage = 10;
@@ -87,6 +93,7 @@ const EmployeeDirectory: React.FC = () => {
           pageSize: itemsPerPage,
           search: debouncedSearch || undefined,
           department: selectedDept === 'All' ? undefined : selectedDept,
+          status: statusFilter === 'all' ? undefined : statusFilter,
         });
         if (ignore) return;
         setEmployees(result.data ?? []);
@@ -100,7 +107,7 @@ const EmployeeDirectory: React.FC = () => {
     };
     fetchEmployees();
     return () => { ignore = true; };
-  }, [currentPage, debouncedSearch, selectedDept, reloadKey]);
+  }, [currentPage, debouncedSearch, selectedDept, statusFilter, reloadKey]);
 
   const handleSearchChange = (value: string) => {
     setSearchTerm(value);
@@ -143,19 +150,21 @@ const EmployeeDirectory: React.FC = () => {
   const handleToggleStatus = async (emp: Employee) => {
     setActionLoading(`status-${emp.id}`);
     try {
-      await HrService.updateEmployeeStatus(emp.id, !emp.isActive);
-      setEmployees((prev) =>
-        prev.map((e) => e.id === emp.id ? { ...e, isActive: !e.isActive } : e),
-      );
+      const res = await HrService.updateEmployeeStatus(emp.id, !emp.isActive);
+      const cancelled: number = res?.cancelledSessions ?? 0;
       showToast(
-        `${emp.name} has been ${emp.isActive ? 'deactivated' : 'activated'} successfully.`,
+        emp.isActive
+          ? `${emp.name} has been deactivated.${cancelled ? ` ${cancelled} upcoming coaching session${cancelled === 1 ? ' was' : 's were'} cancelled and their coach was told.` : ''}`
+          : `${emp.name} has been activated.`,
         'success',
       );
+      reload();
     } catch (err: any) {
       console.error('Failed to update employee status:', err);
       showToast(err?.response?.data?.message || 'Failed to update employee status. Please try again.', 'error');
     } finally {
       setActionLoading(null);
+      setToDeactivate(null);
     }
   };
 
@@ -178,6 +187,21 @@ const EmployeeDirectory: React.FC = () => {
                 Bulk Import
               </ToolbarButton>
             </div>
+
+            <label className="flex h-10 shrink-0 items-center gap-2 rounded-[8px] border border-solid border-neutral-100 px-3 font-outfit text-[14px] text-neutral-700 focus-within:border-primary-600">
+              <span className="sr-only">Filter by status</span>
+              <select
+                aria-label="Filter by status"
+                className="bg-transparent outline-none"
+                value={statusFilter}
+                onChange={(e) => { setStatusFilter(e.target.value as typeof statusFilter); setCurrentPage(1); }}
+              >
+                <option value="all">All statuses</option>
+                <option value="invited">Invited (not signed in)</option>
+                <option value="onboarded">Onboarded</option>
+                <option value="inactive">Deactivated</option>
+              </select>
+            </label>
 
             {/* Department filter: the Figma button face over a native select */}
             <label className="relative flex h-10 shrink-0 cursor-pointer items-center justify-center gap-1 rounded-[8px] border border-solid border-neutral-100 pl-2.5 pr-4 font-outfit text-[14px] font-normal leading-6 text-neutral-700 transition-colors focus-within:border-primary-600">
@@ -237,17 +261,30 @@ const EmployeeDirectory: React.FC = () => {
                         type="button"
                         className={actionButton}
                         disabled={!!actionLoading}
+                        onClick={() => setEditing(emp)}
+                        title="Edit details"
+                        aria-label={`Edit ${emp.name}`}
+                      >
+                        <Pencil className="size-5 text-neutral-600" />
+                      </button>
+                      {/* Re-sending only makes sense before the first sign-in: after that it would overwrite the employee's own password. */}
+                      {emp.isActive && emp.status === 'Invited' && (
+                      <button
+                        type="button"
+                        className={actionButton}
+                        disabled={!!actionLoading}
                         onClick={() => handleResendCredentials(emp)}
                         title="Resend credentials"
                         aria-label={`Resend credentials to ${emp.email}`}
                       >
                         {busy && actionLoading === `resend-${emp.id}` ? spinner : <FigmaIcon src={figma.actionResend} size={20} />}
                       </button>
+                      )}
                       <button
                         type="button"
                         className={actionButton}
                         disabled={!!actionLoading}
-                        onClick={() => handleToggleStatus(emp)}
+                        onClick={() => (emp.isActive ? setToDeactivate(emp) : handleToggleStatus(emp))}
                         title={emp.isActive ? 'Deactivate employee' : 'Activate employee'}
                         aria-label={emp.isActive ? `Deactivate ${emp.name}` : `Activate ${emp.name}`}
                       >
@@ -285,6 +322,18 @@ const EmployeeDirectory: React.FC = () => {
         onSuccess={handleAddSuccess}
         departments={departments}
       />
+
+      <EditEmployeeModal employee={editing} departments={departments} onClose={() => setEditing(null)} onSaved={() => { showToast('Employee details saved.', 'success'); reload(); }} />
+
+      <Modal isOpen={!!toDeactivate} onClose={() => (actionLoading ? undefined : setToDeactivate(null))} title="Deactivate this employee?">
+        <p className="text-sm text-[var(--color-text-secondary)]">
+          {toDeactivate?.name} will be signed out and unable to sign in. Any upcoming coaching sessions will be cancelled, their coach will be told, and they will be removed from their coach's list. Their seat is freed and you can reactivate them later.
+        </p>
+        <div className="mt-6 flex justify-end gap-3">
+          <Button variant="ghost" onClick={() => setToDeactivate(null)} disabled={!!actionLoading}>Keep active</Button>
+          <Button onClick={() => toDeactivate && handleToggleStatus(toDeactivate)} disabled={!!actionLoading}>{actionLoading ? 'Deactivating…' : 'Deactivate'}</Button>
+        </div>
+      </Modal>
 
       <BulkImportModal
         isOpen={showBulkModal}

@@ -6,6 +6,7 @@ import type {
   ParticipationDept,
   DashboardAlert,
   InsightsSummary,
+  SessionsSummary,
   StatsPeriod,
 } from '../types/dashboard.types';
 import type { HrProfile } from '../types/auth.types';
@@ -58,8 +59,17 @@ export const HrService = {
     pageSize?: number;
     search?: string;
     department?: string;
+    status?: 'invited' | 'onboarded' | 'inactive';
   } = {}): Promise<EmployeePage> => {
     const response = await axiosInstance.get('/hr/employees', { params });
+    return response.data;
+  },
+
+  updateEmployee: async (
+    id: string,
+    data: { fullName?: string; phone?: string | null; department?: string | null; employeeCode?: string | null },
+  ): Promise<any> => {
+    const response = await axiosInstance.patch(`/hr/employees/${id}`, data);
     return response.data;
   },
 
@@ -154,21 +164,19 @@ export const HrService = {
     return response.data;
   },
 
-  getCompanySessions: async (page = 1, pageSize = 50, search?: string): Promise<any> => {
-    const response = await axiosInstance.get('/hr/sessions', { params: { page, pageSize, search } });
+  /** Session counts only (no names, coaches or meeting links); small groups come back hidden. */
+  getSessionsSummary: async (): Promise<SessionsSummary> => {
+    const response = await axiosInstance.get('/hr/sessions');
     return response.data;
   },
 
-  /** Downloads every company session as a CSV file (optionally narrowed by the same search). */
-  exportCompanySessions: async (search?: string): Promise<void> => {
-    const response = await axiosInstance.get('/hr/sessions/export', {
-      params: { search },
-      responseType: 'blob',
-    });
+  /** Downloads the same counts as a CSV file; hidden figures stay hidden. */
+  exportSessionsSummary: async (): Promise<void> => {
+    const response = await axiosInstance.get('/hr/sessions/export', { responseType: 'blob' });
     const url = URL.createObjectURL(response.data as Blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = 'koshpal_sessions.csv';
+    link.download = 'koshpal_sessions_summary.csv';
     document.body.appendChild(link);
     link.click();
     link.remove();

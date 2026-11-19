@@ -1,12 +1,13 @@
+/** A figure the server hid because fewer than the minimum number of people are behind it. */
+export interface Suppressed { suppressed: true; reason: 'SMALL_COHORT' }
+export type Guarded<T = number> = T | Suppressed;
+
 export interface DashboardStats {
   employeeMonitored: number;
-  employeeMonitoredChange: string;
-  avgFinancialHealth: number;
-  avgFinancialHealthPeriod: string;
-  participationRate: number;
-  participationRateChange: string;
+  avgFinancialHealth: Guarded;
+  participationRate: Guarded;
   sessionsThisPeriod: number;
-  sessionsRate: string;
+  minCohortSize?: number;
   period?: StatsPeriod;
 }
 
@@ -15,18 +16,19 @@ export type StatsPeriod = 'weekly' | 'monthly' | 'quarterly' | 'yearly';
 export interface FinancialHealthDist {
   distribution: Array<{
     category: string;
-    value: number;
+    value: Guarded;
     range: string;
-    count?: number;
+    count?: Guarded;
   }>;
-  total: number;
+  total: Guarded;
+  suppressed?: boolean;
+  minCohortSize?: number;
 }
 
 export interface ParticipationDept {
   department: string;
-  total: number;
-  participating: number;
-  participationRate: number;
+  count: number;
+  participationRate: Guarded;
 }
 
 export interface DashboardAlert {
@@ -37,15 +39,28 @@ export interface DashboardAlert {
 }
 
 export interface InsightsSummary {
+  minCohortSize: number;
   totalEmployees: number;
-  aggregatedIncome: number;
-  aggregatedExpense: number;
-  aggregatedSavings: number;
+  sharingEmployees: Guarded;
+  aggregatedIncome: Guarded;
+  aggregatedExpense: Guarded;
+  aggregatedSavings: Guarded;
   monthlySummaries: Array<{
     month: number;
     year: number;
-    totalIncome: number;
-    totalExpense: number;
-    netSavings: number;
+    totalIncome: Guarded;
+    totalExpense: Guarded;
+    netSavings: Guarded;
   }>;
+  privacyNote: string;
+}
+
+export interface SessionsSummary {
+  minCohortSize: number;
+  windowMonths: number;
+  totalSessions: Guarded;
+  byStatus: Array<{ status: string; sessions: Guarded }>;
+  byMonth: Array<{ month: string; sessions: Guarded }>;
+  byDepartment: Array<{ department: string; sessions: Guarded }>;
+  privacyNote: string;
 }

@@ -54,9 +54,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
-    await AuthService.logout();
-    setUser(null);
-    localStorage.removeItem('user');
+    try {
+      await AuthService.logout();
+    } catch {
+      /* offline or already signed out: still leave rather than stay stuck signed in on screen */
+    } finally {
+      setUser(null);
+      localStorage.removeItem('user');
+    }
   };
 
   return (

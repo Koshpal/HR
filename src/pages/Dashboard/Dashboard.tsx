@@ -12,6 +12,7 @@ import DepartmentParticipationChart from '../../components/dashboard/DepartmentP
 import AlertsCard from '../../components/dashboard/AlertsCard';
 import { FigmaIcon } from '../../components/common/FigmaIcon';
 import { figma } from '../../assets/figma';
+import { asChartNumber, hiddenNote, isSuppressed, showGuarded } from '../../utils/privacy';
 
 interface SummaryCardProps {
   bg: string;
@@ -21,10 +22,12 @@ interface SummaryCardProps {
   labelClass: string;
   label: string;
   value: string | number;
+  /** Shown under the value, e.g. why a figure is hidden. */
+  hint?: string;
 }
 
 /** Figma "Summary" tile: 44px icon chip, 16/26 label, 24/44 value. */
-const SummaryCard: React.FC<SummaryCardProps> = ({ bg, iconBg, iconClass, icon, labelClass, label, value }) => (
+const SummaryCard: React.FC<SummaryCardProps> = ({ bg, iconBg, iconClass, icon, labelClass, label, value, hint }) => (
   <div className={`flex min-w-0 flex-1 flex-col items-center justify-center rounded-[16px] px-4 py-6 ${bg}`}>
     <div className="flex h-[118px] w-full flex-col items-start justify-center gap-4">
       <div className={`flex size-[44px] shrink-0 items-center ${iconBg} ${iconClass}`}>
@@ -37,6 +40,7 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ bg, iconBg, iconClass, icon, 
             {value}
           </p>
         </div>
+        {hint && <p className="font-outfit text-[12px] leading-5 text-neutral-500">{hint}</p>}
       </div>
     </div>
   </div>
@@ -95,6 +99,14 @@ const Dashboard: React.FC = () => {
     fetchDashboardData();
   }, []);
 
+  // The charts draw plain numbers; figures the server hid are drawn as zero and labelled as hidden.
+  const chartHealth = healthDist && {
+    ...healthDist,
+    total: asChartNumber(healthDist.total),
+    distribution: healthDist.distribution.map((b) => (isSuppressed(b.value) ? { ...b, category: `${b.category} (hidden)`, value: 0, count: 0 } : { ...b, value: asChartNumber(b.value), count: asChartNumber(b.count) })),
+  };
+  const chartDepts = deptParticipation.map((d) => ({ ...d, department: isSuppressed(d.participationRate) ? `${d.department} (hidden)` : d.department, participationRate: asChartNumber(d.participationRate) }));
+
   const periodInfo = PERIODS.find((p) => p.value === period) ?? PERIODS[1];
 
   if (loading) {
@@ -146,7 +158,8 @@ const Dashboard: React.FC = () => {
             icon={figma.iconTrendUpCircle}
             labelClass="text-primary-800"
             label="AVG FINANCIAL HEALTH"
-            value={stats ? `${stats.avgFinancialHealth}/ 100` : '—'}
+            value={stats ? showGuarded(stats.avgFinancialHealth, (n) => `${n}/ 100`) : '—'}
+            hint={stats && isSuppressed(stats.avgFinancialHealth) ? hiddenNote(stats.minCohortSize) : undefined}
           />
           <SummaryCard
             bg="bg-warning-50"
@@ -155,7 +168,8 @@ const Dashboard: React.FC = () => {
             icon={figma.iconUserEye}
             labelClass="text-warning-900"
             label="PARTICIPATION RATE"
-            value={stats ? `${stats.participationRate}%` : '—'}
+            value={stats ? showGuarded(stats.participationRate, (n) => `${n}%`) : '—'}
+            hint={stats && isSuppressed(stats.participationRate) ? hiddenNote(stats.minCohortSize) : undefined}
           />
           <SummaryCard
             bg="bg-secondary-50"
@@ -171,12 +185,15 @@ const Dashboard: React.FC = () => {
 
       {/* Financial Health Distribution + Alerts */}
       <div className="flex flex-col items-stretch gap-8 lg:flex-row lg:items-center">
-        <HealthDistributionChart data={healthDist} />
+        <HealthDistributionChart data={chartHealth} />
         <AlertsCard alerts={alerts} />
       </div>
 
       {/* Participation by Department */}
-      <DepartmentParticipationChart data={deptParticipation} />
+      <DepartmentParticipationChart data={chartDepts} />
+      {(healthDist?.suppressed || deptParticipation.some((d) => isSuppressed(d.participationRate))) && (
+        <p className="font-outfit text-[13px] text-neutral-500">{hiddenNote(stats?.minCohortSize ?? healthDist?.minCohortSize)} Groups below that size are shown as zero or left out so no individual can be identified.</p>
+      )}
     </div>
   );
 };

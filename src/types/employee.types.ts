@@ -7,10 +7,10 @@ export interface Employee {
   status: 'Invited' | 'Onboarded';
   engagement: 'Active' | 'Inactive';
   lastActivity: string;
-  sessionsAttended: number;
   isActive: boolean;
   phone?: string;
   dateOfJoining?: string;
+  employeeCode?: string | null;
   profilePhoto?: string | null;
   inviteEmailFailed?: boolean;
 }

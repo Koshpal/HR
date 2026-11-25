@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import AppRoutes from './routes/AppRoutes';
+import PageMeta from './components/PageMeta';
 import './index.css';
 import { Analytics } from '@vercel/analytics/react';
 
@@ -15,6 +16,7 @@ const App: React.FC = () => {
       <ToastProvider>
         <AuthProvider>
           <Router>
+            <PageMeta />
             <AppRoutes />
           </Router>
         </AuthProvider>

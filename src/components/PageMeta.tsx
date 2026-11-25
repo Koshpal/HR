@@ -20,17 +20,17 @@ interface PageMetaEntry {
 const DEFAULT_ENTRY: PageMetaEntry = {
   path: '/',
   title: 'HR Portal',
-  description: 'Koshpal HR portal: see how employee financial wellness coaching is used and what difference it makes, with privacy-safe aggregate data.',
+  description: 'HR portal for Koshpal’s employee financial wellness program: see how coaching is used and what difference it makes, with privacy-safe aggregate data.',
 };
 
 export const PAGES: PageMetaEntry[] = [
-  { path: '/login', title: 'HR Login', description: 'Sign in to the Koshpal HR portal to see your company’s financial wellness programme.' },
+  { path: '/login', title: 'HR Login', description: 'Sign in to the Koshpal HR portal to see how your employee financial wellness program is used and what it delivers.' },
   { path: '/forgot-password', title: 'Forgot Password', description: 'Reset your Koshpal HR portal password. Enter your work email and we will send you a reset link.' },
-  { path: '/dashboard', title: 'Dashboard', description: 'Your financial wellness programme at a glance: enrolment, sessions and engagement.' },
+  { path: '/dashboard', title: 'Dashboard', description: 'Your employee financial wellness program at a glance: enrolment, coaching sessions and engagement.' },
   { path: '/employees', title: 'Employee Directory', description: 'Manage who is enrolled in the financial wellness programme and invite new employees.' },
   { path: '/sessions', title: 'Session Reports', description: 'Coaching session volumes and completion across your company, without individual details.' },
-  { path: '/reports', title: 'Analytics', description: 'Participation and engagement trends for your employee financial wellness programme.' },
-  { path: '/impact', title: 'Impact', description: 'The value the programme delivers: participation, progress and wellbeing, shown as anonymised aggregates.' },
+  { path: '/reports', title: 'Analytics', description: 'Participation and engagement trends for your employee financial wellness program.' },
+  { path: '/impact', title: 'Impact', description: 'The value your employee financial wellness program delivers: participation, progress and wellbeing, as anonymised aggregates.' },
   { path: '/coaching', title: 'Coaching Overview', description: 'How financial coaching is running for your employees, with aggregate-only data that protects privacy.' },
   { path: '/settings', title: 'Settings', description: 'Company profile, notification and security settings for the Koshpal HR portal.' },
 ];
@@ -68,7 +68,7 @@ export default function PageMeta() {
   const { pathname } = useLocation();
   useEffect(() => {
     const { entry, canonical } = resolvePageMeta(pathname);
-    const title = entry === DEFAULT_ENTRY ? 'Koshpal HR Portal' : `${entry.title} | ${PORTAL}`;
+    const title = entry === DEFAULT_ENTRY ? 'Koshpal HR Portal: Employee Financial Wellness' : `${entry.title} | ${PORTAL}`;
     document.title = title;
     setMeta('name', 'description', entry.description);
     setMeta('name', 'robots', 'index, follow');

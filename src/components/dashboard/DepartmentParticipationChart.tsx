@@ -1,37 +1,45 @@
 import React from 'react';
 
-/** Plain numbers only: the dashboard turns figures the server hid into zeros before drawing. */
+/** Plain numbers only: the dashboard turns figures the server hid into `hidden: true` before drawing. */
 interface Props {
-  data: Array<{ department: string; participationRate: number }>;
+  data: Array<{ department: string; participationRate: number; hidden?: boolean }>;
 }
 
-// Geometry lifted from the Figma "Participation by Department" graph (845px-wide plot).
+// Geometry lifted from the Figma "Participation by Department" graph (845px-wide plot), except the left gutter,
+// which grows with the longest department name so a label is never cut off.
 const CHART_WIDTH = 845;
-const AXIS_X = 99.244; // y-axis line x
-const AXIS_TOP = 6.43; // y-axis line top
-const LABEL_PITCH = 51.446; // category label / tick spacing
-const BAR_PITCH = 49.956; // bar spacing (differs slightly from the labels in the design)
+const MIN_AXIS_X = 99.244; // Figma's y-axis position
+const MAX_LABEL_WIDTH = 280; // longer names are shortened (full name in the tooltip)
+const CHAR_WIDTH = 8.1; // average glyph width of the 15.4px axis font
+const LABEL_GAP = 8.44; // label right edge → axis
+const AXIS_TOP = 6.43;
+const LABEL_PITCH = 51.446;
+const BAR_PITCH = 49.956;
 const BAR_TOP = 19.45;
 const BAR_HEIGHT = 36.218;
-const BAR_LEFT = 109;
+const BAR_INSET = 9.76; // Figma starts bars just right of the axis
 const STROKE = 1.286;
-const PX_PER_UNIT = 741.029 / 80; // x-axis is 741px wide for 0–80
 const TICK_STEP = 20;
-const MIN_TICK_MAX = 80;
-const BOTTOM_PAD = 45.02; // axis line → bottom of the chart box
+const TICK_MAX = 100; // participation is a percentage: a fixed 0–100 scale keeps every bar comparable
+const RIGHT_PAD = 28; // room for the last tick label
+const BOTTOM_PAD = 45.02;
 
 const axisFont = 'font-inter text-[15.434px] font-normal leading-[19px] text-[#666]';
 
 /** Figma "Participation by Department" horizontal bars; the top department is highlighted in blue. */
 const DepartmentParticipationChart: React.FC<Props> = ({ data }) => {
   const rows = data.length;
-  const maxValue = data.reduce((m, d) => Math.max(m, d.participationRate), 0);
-  const tickMax = Math.max(MIN_TICK_MAX, Math.ceil(maxValue / TICK_STEP) * TICK_STEP);
-  const ticks = Array.from({ length: tickMax / TICK_STEP + 1 }, (_, i) => i * TICK_STEP);
+  const longest = data.reduce((m, d) => Math.max(m, d.department.length), 0);
+  const labelWidth = Math.min(MAX_LABEL_WIDTH, longest * CHAR_WIDTH);
+  const axisX = Math.max(MIN_AXIS_X, Math.ceil(labelWidth + LABEL_GAP + 14));
+  const pxPerUnit = (CHART_WIDTH - axisX - RIGHT_PAD) / TICK_MAX;
+  const ticks = Array.from({ length: TICK_MAX / TICK_STEP + 1 }, (_, i) => i * TICK_STEP);
 
   const axisY = AXIS_TOP + rows * LABEL_PITCH;
   const height = axisY + BOTTOM_PAD;
-  const topIndex = data.findIndex((d) => d.participationRate === maxValue);
+  const visible = data.filter((d) => !d.hidden);
+  const maxValue = visible.reduce((m, d) => Math.max(m, d.participationRate), 0);
+  const topIndex = maxValue > 0 ? data.findIndex((d) => !d.hidden && d.participationRate === maxValue) : -1;
 
   return (
     <div className="flex w-[874px] max-w-full flex-col gap-4 overflow-clip rounded-[8px] bg-white p-4 shadow-low">
@@ -50,11 +58,11 @@ const DepartmentParticipationChart: React.FC<Props> = ({ data }) => {
               {/* axes */}
               <div
                 className="absolute bg-[#666]"
-                style={{ left: AXIS_X - STROKE / 2, top: AXIS_TOP, width: STROKE, height: rows * LABEL_PITCH }}
+                style={{ left: axisX - STROKE / 2, top: AXIS_TOP, width: STROKE, height: rows * LABEL_PITCH }}
               />
               <div
                 className="absolute bg-[#666]"
-                style={{ left: AXIS_X, top: axisY - STROKE / 2, width: tickMax * PX_PER_UNIT, height: STROKE }}
+                style={{ left: axisX, top: axisY - STROKE / 2, width: TICK_MAX * pxPerUnit, height: STROKE }}
               />
 
               {/* categories + y ticks */}
@@ -64,11 +72,12 @@ const DepartmentParticipationChart: React.FC<Props> = ({ data }) => {
                   <React.Fragment key={dept.department}>
                     <div
                       className="absolute bg-[#666]"
-                      style={{ left: 93.574, top: tickY - STROKE / 2, width: 5.671, height: STROKE }}
+                      style={{ left: axisX - 5.67, top: tickY - STROKE / 2, width: 5.671, height: STROKE }}
                     />
                     <p
-                      className={`absolute whitespace-nowrap text-right ${axisFont}`}
-                      style={{ right: CHART_WIDTH - 90.8, top: tickY - 9.955 }}
+                      title={dept.department}
+                      className={`absolute overflow-hidden text-ellipsis whitespace-nowrap text-right ${axisFont}`}
+                      style={{ right: CHART_WIDTH - (axisX - LABEL_GAP), top: tickY - 9.955, maxWidth: MAX_LABEL_WIDTH }}
                     >
                       {dept.department}
                     </p>
@@ -78,7 +87,7 @@ const DepartmentParticipationChart: React.FC<Props> = ({ data }) => {
 
               {/* x ticks */}
               {ticks.map((tick) => {
-                const x = AXIS_X + tick * PX_PER_UNIT;
+                const x = axisX + tick * pxPerUnit;
                 return (
                   <React.Fragment key={tick}>
                     <div
@@ -89,26 +98,45 @@ const DepartmentParticipationChart: React.FC<Props> = ({ data }) => {
                       className={`absolute -translate-x-1/2 whitespace-nowrap text-center ${axisFont}`}
                       style={{ left: x, top: axisY + 5.813 }}
                     >
-                      {tick}
+                      {tick}%
                     </p>
                   </React.Fragment>
                 );
               })}
 
-              {/* bars (end on the value's x-position; Figma starts them 10px right of the axis) */}
-              {data.map((dept, i) => (
-                <div
-                  key={dept.department}
-                  title={`${dept.department}: ${dept.participationRate}%`}
-                  className={`absolute rounded-r-full ${i === topIndex ? 'bg-primary-600' : 'bg-warning-500'}`}
-                  style={{
-                    left: BAR_LEFT,
-                    top: BAR_TOP + i * BAR_PITCH,
-                    height: BAR_HEIGHT,
-                    width: Math.max(BAR_HEIGHT, dept.participationRate * PX_PER_UNIT - (BAR_LEFT - AXIS_X)),
-                  }}
-                />
-              ))}
+              {/* bars, each labelled with its value; a department too small to report shows "Hidden", not a bar */}
+              {data.map((dept, i) => {
+                const top = BAR_TOP + i * BAR_PITCH;
+                const left = axisX + BAR_INSET;
+                if (dept.hidden) {
+                  return (
+                    <p
+                      key={dept.department}
+                      title="Hidden to protect privacy: too few people in this department"
+                      className="absolute flex items-center font-outfit text-[14px] italic text-neutral-400"
+                      style={{ left: left + 6, top, height: BAR_HEIGHT }}
+                    >
+                      Hidden
+                    </p>
+                  );
+                }
+                const width = Math.max(0, dept.participationRate * pxPerUnit - BAR_INSET);
+                return (
+                  <React.Fragment key={dept.department}>
+                    <div
+                      title={`${dept.department}: ${dept.participationRate}%`}
+                      className={`absolute rounded-r-full ${i === topIndex ? 'bg-primary-600' : 'bg-warning-500'}`}
+                      style={{ left, top, height: BAR_HEIGHT, width }}
+                    />
+                    <p
+                      className="absolute flex items-center font-outfit text-[14px] font-medium text-neutral-700"
+                      style={{ left: left + width + 8, top, height: BAR_HEIGHT }}
+                    >
+                      {dept.participationRate}%
+                    </p>
+                  </React.Fragment>
+                );
+              })}
             </div>
           </div>
         )}

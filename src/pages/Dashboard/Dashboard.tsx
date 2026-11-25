@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { HrService } from '../../services/hr.service';
 import type {
   DashboardStats,
   DashboardAlert,
   FinancialHealthDist,
+  ImpactSummary,
   ParticipationDept,
   StatsPeriod,
 } from '../../types/dashboard.types';
@@ -58,6 +60,8 @@ const Dashboard: React.FC = () => {
   const [alerts, setAlerts] = useState<DashboardAlert[]>([]);
   const [healthDist, setHealthDist] = useState<FinancialHealthDist | null>(null);
   const [deptParticipation, setDeptParticipation] = useState<ParticipationDept[]>([]);
+  const [impact, setImpact] = useState<ImpactSummary | null>(null);
+  const navigate = useNavigate();
   const [period, setPeriod] = useState<StatsPeriod>('monthly');
   const [loading, setLoading] = useState(true);
 
@@ -79,6 +83,7 @@ const Dashboard: React.FC = () => {
           HrService.getDashboardAlerts(),
           HrService.getFinancialHealthDistribution(),
           HrService.getParticipationByDepartment(),
+          HrService.getImpact(),
         ]);
 
         if (results[0].status === 'fulfilled') setAlerts(results[0].value);
@@ -89,6 +94,9 @@ const Dashboard: React.FC = () => {
 
         if (results[2].status === 'fulfilled') setDeptParticipation(results[2].value);
         else console.warn('getParticipationByDepartment failed:', results[2]);
+
+        if (results[3].status === 'fulfilled') setImpact(results[3].value);
+        else console.warn('getImpact failed:', results[3]);
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
       } finally {
@@ -105,7 +113,7 @@ const Dashboard: React.FC = () => {
     total: asChartNumber(healthDist.total),
     distribution: healthDist.distribution.map((b) => (isSuppressed(b.value) ? { ...b, category: `${b.category} (hidden)`, value: 0, count: 0 } : { ...b, value: asChartNumber(b.value), count: asChartNumber(b.count) })),
   };
-  const chartDepts = deptParticipation.map((d) => ({ ...d, department: isSuppressed(d.participationRate) ? `${d.department} (hidden)` : d.department, participationRate: asChartNumber(d.participationRate) }));
+  const chartDepts = deptParticipation.map((d) => ({ department: d.department, hidden: isSuppressed(d.participationRate), participationRate: asChartNumber(d.participationRate) }));
 
   const periodInfo = PERIODS.find((p) => p.value === period) ?? PERIODS[1];
 
@@ -183,6 +191,25 @@ const Dashboard: React.FC = () => {
         </div>
       </section>
 
+      {/* Value delivered: the headline answer to "what is this doing for us?" (full report on /impact) */}
+      {impact && impact.headlines.length > 0 && (
+        <section className="flex flex-col gap-3 rounded-[8px] bg-white p-4 shadow-low">
+          <div className="flex w-full items-center justify-between gap-4">
+            <p className="font-jakarta text-[18px] font-semibold leading-8 text-neutral-800">Value delivered</p>
+            <button
+              type="button"
+              onClick={() => navigate('/impact')}
+              className="font-outfit text-[14px] font-medium leading-6 text-primary-600 hover:underline"
+            >
+              View full impact report →
+            </button>
+          </div>
+          <ul className="flex list-disc flex-col gap-1.5 pl-5 font-outfit text-[15px] leading-6 text-neutral-700">
+            {impact.headlines.slice(0, 3).map((h) => <li key={h.text}>{h.text}</li>)}
+          </ul>
+        </section>
+      )}
+
       {/* Financial Health Distribution + Alerts */}
       <div className="flex flex-col items-stretch gap-8 lg:flex-row lg:items-center">
         <HealthDistributionChart data={chartHealth} />
@@ -192,7 +219,7 @@ const Dashboard: React.FC = () => {
       {/* Participation by Department */}
       <DepartmentParticipationChart data={chartDepts} />
       {(healthDist?.suppressed || deptParticipation.some((d) => isSuppressed(d.participationRate))) && (
-        <p className="font-outfit text-[13px] text-neutral-500">{hiddenNote(stats?.minCohortSize ?? healthDist?.minCohortSize)} Groups below that size are shown as zero or left out so no individual can be identified.</p>
+        <p className="font-outfit text-[13px] text-neutral-500">{hiddenNote(stats?.minCohortSize ?? healthDist?.minCohortSize)} Groups below that size are marked “Hidden” so no individual can be identified.</p>
       )}
     </div>
   );

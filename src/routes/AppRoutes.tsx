@@ -7,6 +7,7 @@ import EmployeeDirectory from '../pages/Employees/EmployeeDirectory';
 import SessionReports from '../pages/Sessions/SessionReports';
 import Analytics from '../pages/Reports/Analytics';
 import CoachingOverview from '../pages/Coaching/CoachingOverview';
+import Impact from '../pages/Impact/Impact';
 import Settings from '../pages/Settings/Settings';
 import Login from '../pages/Auth/Login';
 import ForgotPassword from '../pages/Auth/ForgotPassword';
@@ -30,6 +31,7 @@ const AppRoutes: React.FC = () => {
         <Route path="employees" element={<EmployeeDirectory />} />
         <Route path="sessions" element={<SessionReports />} />
         <Route path="reports" element={<Analytics />} />
+        <Route path="impact" element={<Impact />} />
         <Route path="coaching" element={<CoachingOverview />} />
         <Route path="settings" element={<Settings />} />
       </Route>

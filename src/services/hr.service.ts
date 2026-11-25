@@ -6,6 +6,7 @@ import type {
   ParticipationDept,
   DashboardAlert,
   InsightsSummary,
+  ImpactSummary,
   SessionsSummary,
   StatsPeriod,
 } from '../types/dashboard.types';
@@ -186,6 +187,25 @@ export const HrService = {
   getInsightsSummary: async (): Promise<InsightsSummary> => {
     const response = await axiosInstance.get('/hr/insights/summary');
     return response.data;
+  },
+
+  /** Programme impact: adoption, financial-health movement and coaching delivered, as aggregates. */
+  getImpact: async (): Promise<ImpactSummary> => {
+    const response = await axiosInstance.get('/hr/impact');
+    return response.data;
+  },
+
+  /** Downloads the same figures as a CSV file; hidden figures stay hidden. */
+  exportImpact: async (): Promise<void> => {
+    const response = await axiosInstance.get('/hr/impact/export', { responseType: 'blob' });
+    const url = URL.createObjectURL(response.data as Blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `koshpal_impact_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   },
 
   // ── Profile ───────────────────────────────────────────────────────────────

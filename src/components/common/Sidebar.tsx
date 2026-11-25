@@ -43,7 +43,14 @@ const mainItems: Item[] = [
     match: (p) => p.startsWith('/sessions'),
   },
   {
-    icon: figma.iconTrendUpCircle,
+    icon: figma.impact,
+    label: 'Impact',
+    path: '/impact',
+    match: (p) => p.startsWith('/impact'),
+  },
+  {
+    // iconTrendUpCircle is a white glyph made for a coloured tile; on this white tile it was invisible.
+    icon: figma.coaching,
     label: 'Coaching',
     path: '/coaching',
     match: (p) => p.startsWith('/coaching'),

@@ -5,6 +5,8 @@ import anglesLeft from './angles-left.svg';
 import chartPie from './chart-pie.svg';
 import addressBook from './address-book.svg';
 import presentationUser from './presentation-user.svg';
+import coaching from './coaching.svg';
+import impact from './impact.svg';
 import angleUpSmall from './angle-up-small.svg';
 import settingsNav from './settings-nav.svg';
 import chatInfo from './chat-info.svg';
@@ -44,6 +46,8 @@ export const figma = {
   chartPie,
   addressBook,
   presentationUser,
+  coaching,
+  impact,
   angleUpSmall,
   settingsNav,
   chatInfo,

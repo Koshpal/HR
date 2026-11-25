@@ -6,6 +6,7 @@ import { Header } from './Header';
 const TITLES: Array<[string, string]> = [
   ['/employees', 'Employee Directory'],
   ['/sessions', 'Sessions'],
+  ['/impact', 'Impact'],
   ['/coaching', 'Coaching'],
   ['/reports', 'Reports'],
   ['/settings', 'Settings'],

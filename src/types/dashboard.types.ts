@@ -64,3 +64,46 @@ export interface SessionsSummary {
   byDepartment: Array<{ department: string; sessions: Guarded }>;
   privacyNote: string;
 }
+
+/** `GET /hr/impact` — what the programme is doing for the company. Aggregates only; every figure may be hidden. */
+export interface ImpactFunnelStep { key: string; label: string; count: Guarded; pct: Guarded }
+export interface ImpactSummary {
+  generatedAt: string;
+  minCohortSize: number;
+  activeEmployees: number;
+  funnel: ImpactFunnelStep[];
+  habits: {
+    employeesWithBudget: Guarded;
+    employeesWithGoal: Guarded;
+    employeesReachingAGoal: Guarded;
+    goalsAchieved: Guarded;
+    actionItemCompletionPct: Guarded;
+  };
+  outcomes: {
+    windowDays: number;
+    sharingEmployees: Guarded;
+    employeesWithScore: Guarded;
+    currentAvgScore: Guarded;
+    comparableEmployees: Guarded;
+    avgScoreChange: Guarded;
+    avgStartScore: Guarded;
+    avgLatestScore: Guarded;
+    improvedPct: Guarded;
+    steadyPct: Guarded;
+    declinedPct: Guarded;
+    focusAreas: Array<{ key: string; label: string; avgPctOfMax: Guarded }>;
+    trend: Array<{ month: string; employees: Guarded; avgScore: Guarded }>;
+  };
+  coaching: {
+    employeesCoached: Guarded;
+    coachedPct: Guarded;
+    sessionsCompleted: Guarded;
+    hoursDelivered: Guarded;
+    scoreChangeComparison:
+      | Suppressed
+      | { coached: { employees: number; avgChange: number }; notCoached: { employees: number; avgChange: number } };
+    comparisonNote: string;
+  };
+  headlines: Array<{ tone: 'positive' | 'neutral'; text: string }>;
+  privacyNote: string;
+}
